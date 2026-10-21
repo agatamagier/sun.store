@@ -1,0 +1,34 @@
+# Nuxt
+.nuxt
+.output
+.data
+dist
+
+# Dependencies
+node_modules
+
+# Logs
+*.log
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage
+test-results
+playwright-report
+playwright/.cache
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Vercel
+.vercel
+
+# Local Q&A notes (not committed)
+NOTATKI-QA.md

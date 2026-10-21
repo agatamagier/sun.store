@@ -1,0 +1,12 @@
+{
+  // Root tsconfig references the per-environment configs that Nuxt generates
+  // in .nuxt during `nuxt prepare`. Strictness is configured via
+  // `typescript.strict` in nuxt.config.ts.
+  "files": [],
+  "references": [
+    { "path": "./.nuxt/tsconfig.app.json" },
+    { "path": "./.nuxt/tsconfig.server.json" },
+    { "path": "./.nuxt/tsconfig.shared.json" },
+    { "path": "./.nuxt/tsconfig.node.json" }
+  ]
+}
