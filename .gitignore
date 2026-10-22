@@ -32,3 +32,6 @@ playwright/.cache
 
 # Local Q&A notes (not committed)
 NOTATKI-QA.md
+
+# AI tooling metrics (not part of the project)
+.ailoc2-metrics/
