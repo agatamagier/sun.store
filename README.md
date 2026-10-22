@@ -1,10 +1,10 @@
 # sun.store — listing produktów (zadanie rekrutacyjne)
 
 Strona listingu produktów fotowoltaicznych (panele, baterie, akcesoria) z filtrowaniem,
-wyszukiwaniem i sortowaniem **po stronie serwera**, ze stanem filtrów w URL i SSR.
+wyszukiwaniem i sortowaniem po stronie serwera, ze stanem filtrów w URL i SSR.
 
-- **Live:** _(link do uzupełnienia po wdrożeniu — patrz sekcja „Wdrożenie”)_
-- **Repo:** _(link do uzupełnienia)_
+- **Live:** _https://sun-store-project.vercel.app/
+- **Repo:** _https://github.com/agatamagier/sun.store
 
 ---
 
@@ -59,33 +59,26 @@ Całość to **13 plików źródłowych, ~1,1 tys. linii** — świadomie małe,
 
 ## 1. Kluczowe decyzje i dlaczego
 
-- **Cała logika filtrów po stronie serwera** w `/api/products`. Strona (`index.vue`) robi
+- Cała logika filtrów po stronie serwera w `/api/products`. Strona (`index.vue`) robi
   `useFetch` z `query` równym `route.query`, więc żądanie SSR dla linku z filtrami od razu
-  renderuje właściwe wyniki. Endpoint zwraca też **opcje filtrów** (`filterOptions` — tzw. faceted
-  search: dostępni producenci z licznikami,
+  renderuje właściwe wyniki. Endpoint zwraca też opcje filtrów (`filterOptions` : dostępni producenci z licznikami,
   zakres cen, zakres kWh/W), którymi zasilany jest UI filtrów.
-- **Stan filtrów w URL jako jedyne źródło prawdy.** `useProductFilters` czyta filtry z
-  `route.query` i zapisuje je przez `router.push` (nowy wpis w historii → przycisk „wstecz”
-  działa zgodnie z oczekiwaniami). Dzięki temu link jest współdzielny, a SSR i klient widzą ten
-  sam stan. `useFetch` ma `watch: [() => route.query]`, więc odświeża dane także przy „wstecz/dalej”.
-- **Jedna definicja znaczenia URL** w `shared/utils/filters.ts` (`normalizeFilters` /
+- Stan filtrów w URL jako jedyne źródło prawdy. `useProductFilters` czyta filtry z
+  `route.query` i zapisuje je przez `router.push` (nowy wpis w historii → przycisk „wstecz”)
+  Dzięki temu link jest współdzielny, a SSR i klient widzą ten sam stan. 
+  `useFetch` ma `watch: [() => route.query]`, więc odświeża dane także przy „wstecz/dalej”.
+- Jedna definicja znaczenia URL w `shared/utils/filters.ts` (`normalizeFilters` /
   `serializeFilters`), używana i przez serwer, i przez klienta — nie ma ryzyka, że obie strony
-  różnie zinterpretują ten sam link. `normalizeFilters` jest też walidacją na granicy zaufania:
-  nigdy nie rzuca, zawsze zwraca bezpieczne, zdefaultowane i ograniczone wartości.
-- **Bez bazy danych.** CSV czytany i parsowany **raz**, cache w pamięci modułu. Plik dołączony
-  jako **Nitro server asset** (`nitro.serverAssets`), więc jest dostępny również w środowisku
+  różnie zinterpretują ten sam link. `normalizeFilters` jest też walidacją
+- CSV czytany i parsowany raz, cache w pamięci modułu. Plik dołączony
+  jako Nitro server asset (`nitro.serverAssets`), więc jest dostępny również w środowisku
   serverless (Vercel), a nie tylko przy odczycie z dysku lokalnego.
-- **`csv-parse`** zamiast ręcznego `split(',')` — opisy zawierają przecinki i są cytowane
-  niekonsekwentnie; własny parser łatwo by je uszkodził.
-- **Nuxt UI v4** — natywny dla Nuxt, lekki, dobry pod SSR/SEO.
-- **Czyste, wydzielone funkcje** (`spec.ts`, `filter.ts`) — sedno logiki jest łatwe do
-  przetestowania bez uruchamiania frameworka.
-- **Systemowy stack fontów** — zero kosztu sieciowego, brak zależności od zewnętrznego dostawcy
-  fontów i brak FOIT (lepszy first paint i SEO).
+- `csv-parse` zamiast ręcznego `split(',')` — opisy zawierają przecinki i są cytowane więc split by nie zadziałał.
 
-## 2. Jak pozyskałem kWh/W i przypadki brzegowe
 
-W CSV nie ma osobnej kolumny — wartości wyciągam z `name` i `description`, **zależnie od kategorii**:
+## 2. Jak pozyskałam kWh/W i przypadki brzegowe
+
+W CSV nie ma osobnej kolumny — wartości wyciągam z `name` i `description`, zależnie od kategorii:
 
 | Kategoria | Metryka | Przykład |
 |---|---|---|
@@ -95,39 +88,35 @@ W CSV nie ma osobnej kolumny — wartości wyciągam z `name` i `description`, *
 
 Strategia (`server/utils/spec.ts`):
 
-- **Opis najpierw** (ma jawną jednostkę), **fallback z liczby w nazwie** gdy opis nie ma jednostki.
-- **Wiele liczb w opisie** → wybieram tę zgodną z liczbą w nazwie. Np. „The 7.5kWh … stack up to
-  four units for a **total of 30kWh**” daje poprawnie **7.5**, a „This **10.5kWh** … three 3.5kWh
-  modules” daje **10.5**.
-- **Regexy z granicami**: `W\b` nie łapie „W” wewnątrz „k**W**h” ani „A**W**G”; „kWh”
+- Szukam kWh i W a opisie (ma jawną jednostkę), fallback z liczby w nazwie gdy opis nie ma jednostki.
+- Wiele liczb w opisie → wybieram tę zgodną z liczbą w nazwie. Np. „The 7.5kWh … stack up to
+  four units for a total of 30kWh” daje poprawnie 7.5, a „This 10.5kWh … three 3.5kWh
+  modules” daje 10.5.
+- Regexy z granicami: `W\b` nie łapie „W” wewnątrz „k**W**h” ani „A**W**G”; „kWh”
   case-insensitive. Dzięki temu konektory („12 AWG”, „1500V”) nie dają fałszywych trafień mocy.
-- **Wartości dziesiętne** (2.5, 13.5) obsłużone.
-- **Connector** → `capacityKwh=null`, `powerW=null`, `specValue=null`; w UI filtr i sortowanie po
-  wydajności są wtedy **nieaktywne** (kWh i W są nieporównywalne, więc nie mieszam ich w jednym
+- Wartości dziesiętne (2.5, 13.5) obsłużone.
+- Connector → `capacityKwh=null`, `powerW=null`, `specValue=null`; w UI filtr i sortowanie po
+  wydajności są wtedy nieaktywne(kWh i W są nieporównywalne, więc nie mieszam ich w jednym
   sortowaniu — metryka zależy od wybranej kategorii).
-- **Dane niepoprawne**: wiersz bez nazwy lub z nieznaną kategorią jest pomijany; brak liczby →
+- Dane niepoprawne: wiersz bez nazwy lub z nieznaną kategorią jest pomijany; brak liczby →
   bezpieczne `null`.
 
 Pokryte testami w `test/spec.test.ts` (w tym przypadki „30kWh” i „AWG/1500V”).
 
 ## 3. Indeksowanie kombinacji filtrów w wyszukiwarkach
 
-Indeksowalne są tylko **kanoniczne wejścia**: pełny katalog (`/`) oraz widoki per-kategoria
-(`?category=…`) — mają `robots: index,follow`. Głębokie kombinacje (producent, cena, kWh/W,
+Indeksowalne są tylko: pełny katalog (`/`) oraz widoki per-kategoria
+(`?category=…`) — mają `robots: index,follow`. Kombinacje (producent, cena, kWh/W,
 wyszukiwanie, paginacja) dostają `noindex,follow`, żeby nie marnować budżetu indeksowania i nie
-tworzyć near-duplicates, zachowując przy tym przejście robota do produktów. Docelowo dodałbym
-`canonical` do wersji per-kategoria, `sitemap.xml` z białą listą naprawdę wartościowych kombinacji
-(np. popularni producenci) oraz prerender/ISR dla tych wybranych stron.
+tworzyć duplikatów, zachowując przy tym przejście robota do produktów. Docelowo dodałbym
+`canonical` do wersji per-kategoria, `sitemap.xml` z białą listą wartościowych kombinacji
+(np. popularni producenci).
 
-## 4. Czego celowo nie zrobiłem i co dalej
+## 4. Czego celowo nie zrobiłam i co dalej
 
-- **Dual-range slider** dla ceny/wydajności — użyłem pól min/max (prostsze, przewidywalne, dobre
-  pod SSR i testy). Slider to kosmetyka do dołożenia.
-- **Opcje filtrów uproszczone**: liczniki producentów oraz zakresy liczone są dla zbioru zawężonego
-  kategorią + wyszukiwaniem, a kategorie — dla zbioru zawężonego samym wyszukiwaniem. Pełne
-  „exclude-self” dla każdego wymiaru to następny krok.
-- **Brak strony produktu, logowania, panelu** — zgodnie z treścią zadania.
-- **Dalej, mając więcej czasu**: `sitemap` + `canonical`, nagłówki cache na `/api/products`,
+- Dwustronny slider dla ceny/wydajności — użyłam pól min/max (prostsze, dobre pod testy).
+- Brak strony produktu, logowania, panelu — to nastepne kroki.
+- Mając wiecej czasu zrobilabym: `sitemap` + `canonical`, nagłówki cache na `/api/products`,
   wirtualizacja/paginacja kursora przy znacznie większych zbiorach, i18n (dane są po angielsku,
   UI po angielsku), zmniejszenie server-bundle ikon, oraz debounce-owany URL dla pól liczbowych.
 
@@ -151,39 +140,37 @@ symulacji slow-4G + 4× throttling CPU); interaktywność (TBT) i stabilność u
 dobre. Raporty HTML w repo: [`lighthouse-desktop.report.html`](./lighthouse-desktop.report.html)
 oraz [`lighthouse-report.report.html`](./lighthouse-report.report.html).
 
-> Uwaga: pomiar lokalny był robiony za firmowym proxy, które przechwytuje TLS i blokuje pobieranie
+> Uwaga: pomiar lokalny był robiony za firmowym proxy, które blokuje pobieranie
 > web-fontów/ikon z internetu — dlatego zdecydowałem się na systemowy stack fontów i lokalną
 > kolekcję ikon (`@iconify-json/lucide`), co jest też lepsze wydajnościowo. Na docelowym hostingu
-> (Vercel) wynik, zwłaszcza mobile, powinien być wyższy dzięki CDN i HTTP/2.
+> (Vercel) wynik, zwłaszcza mobile, powinien być wyższy.
 
-## 6. Jak korzystałem z AI
+## 6. Jak korzystałam z AI
 
 Rozwiązanie powstało w parze z **Claude Code** (agent w terminalu) — zgodnie z zachętą w zadaniu.
-AI użyłem do: scaffoldu projektu, logiki ekstrakcji kWh/W i filtrowania, komponentów UI, testów
+AI użyłam do: poczatkowej struktury projektu, logiki ekstrakcji kWh/W i filtrowania, komponentów UI, testów
 jednostkowych i e2e oraz do diagnozy problemów. Miejsca, gdzie wynik AI wymagał mojej korekty:
 
-- **`<SelectItem>` z pustą wartością** — pierwsza wersja miała opcję „All categories” z
-  `value=''`, co reka-ui (pod Nuxt UI) zabrania; pusty string jest zarezerwowany do czyszczenia
-  selecta. Efekt: błąd renderowania wywalał hydrację i strona była nieinteraktywna. Poprawka:
-  sentinel `__all__` mapowany na `null`.
-- **Zdublowane instancje Vue/reka-ui** po zmianie wersji TypeScript (pozostałe warianty w drzewie
-  pnpm) — objawiało się „missing template or render function”. Naprawione czystą reinstalacją
-  (jeden spójny graf zależności).
-- **`vue-tsc` niezgodny z TypeScript 7** (natywny port) — cofnięcie do linii TS 5.x.
-- **Testy e2e** — Playwrightowy `fill()` nie wyzwala listenera tego UInput, a wszystkie checkboxy
-  dziedziczyły jedną nazwę dostępną z `UFormField`. Poprawiłem to u źródła (lepsza dostępność:
-  `<fieldset>`/`<legend>` zamiast jednej etykiety grupowej), dodałem deterministyczny marker
-  hydracji i przepisałem scenariusze na niezawodne kontrolki.
-- **Lighthouse 13 niezgodny z Node 22** — użycie wersji 12.
-- **Odświeżanie danych przy „wstecz”** — dodanie `watch: [() => route.query]` do `useFetch`.
+- `<SelectItem>` z pustą wartością — pierwsza wersja miała opcję „All categories” z
+  `value=''`, czego biblioteka zabrania; pusty string jest zarezerwowany do czyszczenia
+  selecta. Efekt: błąd renderowania, strona była nieinteraktywna. Poprawka:
+ mapowanie na `null`.
+-Zdublowane instancje Vue po zmianie wersji TypeScript  objawiało się „missing template or render function”. Naprawione reinstalacją
+- `vue-tsc` niezgodny z TypeScript 7 (natywny port) — cofnięcie do linii TS 5.x.
+- Testy e2e — Playwrightowy `fill()` nie wyzwala listenera UInput, a wszystkie checkboxy
+  dziedziczyły jedną nazwę dostępną z `UFormField`. Poprawiłam to u źródła (lepsza dostępność:
+  `<fieldset>`/`<legend>` zamiast jednej etykiety grupowej), dodałam marker
+  hydracji i przepisałam scenariusze testu na poporawne komponenty.
+- Lighthouse 13 niezgodny z Node 22 — użycie wersji 12.
+- Odświeżanie danych przy „wstecz” — dodanie `watch: [() => route.query]` do `useFetch`.
 
-Wnioski: AI świetnie przyspiesza szkielet i logikę, ale integracja z konkretną wersją biblioteki
+Wnioski: AI przyspiesza szkielet i logikę, ale integracja z konkretną wersją biblioteki
 komponentów (reka-ui/Nuxt UI), specyfika środowiska (proxy, wersje narzędzi) i realne zachowanie
 w przeglądarce wymagały weryfikacji i poprawek z mojej strony.
 
 ## 7. Ile czasu zajęło
 
-Ok. **4–4,5 h** łącznie z README. Istotna część poszła na tarcia środowiskowe (firmowe proxy
+Ok. **4–4,5 h** łącznie z README. Istotna część poszła na problemy środowiskowe (firmowe proxy
 blokujące pobieranie szablonów/fontów/przeglądarek, deduplikacja zależności, quirki Playwrighta
 z inputem Nuxt UI), a nie na samą logikę zadania — tę udało się zamknąć szybko dzięki wydzieleniu
 czystych, testowalnych funkcji.
