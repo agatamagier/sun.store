@@ -1,4 +1,4 @@
-# sun.store — listing produktów (zadanie rekrutacyjne)
+# sun.store — listing produktów
 
 Strona listingu produktów fotowoltaicznych (panele, baterie, akcesoria) z filtrowaniem,
 wyszukiwaniem i sortowaniem po stronie serwera, ze stanem filtrów w URL i SSR.
@@ -14,11 +14,11 @@ wyszukiwaniem i sortowaniem po stronie serwera, ze stanem filtrów w URL i SSR.
 pnpm install
 pnpm dev            # http://localhost:3000
 
-pnpm build          # build produkcyjny (Nitro)
+pnpm build          # build produkcyjny
 pnpm preview        # podgląd builda
 
 pnpm typecheck      # vue-tsc, TypeScript w trybie strict
-pnpm test           # testy jednostkowe (Vitest)
+pnpm test           # testy jednostkowe
 pnpm test:e2e       # testy e2e (Playwright) — wymaga przeglądarki (patrz niżej)
 ```
 
@@ -36,8 +36,8 @@ server/
   data/products.csv          # źródło danych (dołączane jako Nitro server asset)
   api/products.get.ts         # endpoint: filtrowanie/search/sort + opcje filtrów po stronie serwera
   utils/
-    spec.ts                   # ekstrakcja kWh/W (czyste funkcje, testowane)
-    filter.ts                 # queryProducts: filtry + sort + opcje filtrów (czyste, testowane)
+    spec.ts                   # ekstrakcja kWh/W 
+    filter.ts                 # queryProducts: filtry + sort + opcje filtrów 
     products.ts               # wczytanie + parsowanie CSV + cache w pamięci
 shared/
   types/product.ts            # wspólne typy domenowe
@@ -50,10 +50,6 @@ app/
 test/                         # testy jednostkowe (spec, filter, filters, products)
 tests/e2e/filters.spec.ts     # scenariusze e2e
 ```
-
-Całość to **13 plików źródłowych, ~1,1 tys. linii** — świadomie małe, jednozadaniowe moduły
-(konwencja file-based Nuxt), a nie jeden duży plik. Logika domenowa siedzi w `spec.ts` i
-`filter.ts`; reszta to cienki UI i typy.
 
 ---
 
@@ -86,7 +82,6 @@ W CSV nie ma osobnej kolumny — wartości wyciągam z `name` i `description`, z
 | `solar panel` | moc **W** | „an impressive 450W output” |
 | `connector` | **brak** (A / V / AWG) | „inline 15A fuse, 1500V” → `null` |
 
-Strategia (`server/utils/spec.ts`):
 
 - Szukam kWh i W a opisie (ma jawną jednostkę), fallback z liczby w nazwie gdy opis nie ma jednostki.
 - Wiele liczb w opisie → wybieram tę zgodną z liczbą w nazwie. Np. „The 7.5kWh … stack up to
@@ -98,10 +93,8 @@ Strategia (`server/utils/spec.ts`):
 - Connector → `capacityKwh=null`, `powerW=null`, `specValue=null`; w UI filtr i sortowanie po
   wydajności są wtedy nieaktywne(kWh i W są nieporównywalne, więc nie mieszam ich w jednym
   sortowaniu — metryka zależy od wybranej kategorii).
-- Dane niepoprawne: wiersz bez nazwy lub z nieznaną kategorią jest pomijany; brak liczby →
-  bezpieczne `null`.
+- Dane niepoprawne: wiersz bez nazwy lub z nieznaną kategorią jest pomijany; 
 
-Pokryte testami w `test/spec.test.ts` (w tym przypadki „30kWh” i „AWG/1500V”).
 
 ## 3. Indeksowanie kombinacji filtrów w wyszukiwarkach
 
@@ -117,8 +110,7 @@ tworzyć duplikatów, zachowując przy tym przejście robota do produktów. Doce
 - Dwustronny slider dla ceny/wydajności — użyłam pól min/max (prostsze, dobre pod testy).
 - Brak strony produktu, logowania, panelu — to nastepne kroki.
 - Mając wiecej czasu zrobilabym: `sitemap` + `canonical`, nagłówki cache na `/api/products`,
-  wirtualizacja/paginacja kursora przy znacznie większych zbiorach, i18n (dane są po angielsku,
-  UI po angielsku), zmniejszenie server-bundle ikon, oraz debounce-owany URL dla pól liczbowych.
+  i18n (dane są po angielsku, UI po angielsku)
 
 ## 5. Lighthouse
 
@@ -127,27 +119,20 @@ Lighthouse 12, Chrome headless.
 
 | Kategoria | Desktop | Mobile |
 |---|---:|---:|
-| **Performance** | **95** | **62** |
+| Performance | 95 | 62 |
 | Accessibility | 96 | 96 |
 | Best Practices | 100 | 100 |
 | SEO | 100 | 100 |
 
-- **Desktop** (reprezentatywne dla narzędzia pracy B2B): FCP 1.1 s · LCP 1.2 s · TBT 10 ms · CLS 0.
-- **Mobile**: FCP 5.7 s · LCP 6.2 s · TBT 110 ms · CLS 0.
-
-Niższy wynik mobile wynika z czasu pierwszego renderu (render-blocking CSS Nuxt UI przy
-symulacji slow-4G + 4× throttling CPU); interaktywność (TBT) i stabilność układu (CLS) są bardzo
-dobre. Raporty HTML w repo: [`lighthouse-desktop.report.html`](./lighthouse-desktop.report.html)
-oraz [`lighthouse-report.report.html`](./lighthouse-report.report.html).
 
 > Uwaga: pomiar lokalny był robiony za firmowym proxy, które blokuje pobieranie
-> web-fontów/ikon z internetu — dlatego zdecydowałem się na systemowy stack fontów i lokalną
-> kolekcję ikon (`@iconify-json/lucide`), co jest też lepsze wydajnościowo. Na docelowym hostingu
+> web-fontów/ikon z internetu — dlatego zdecydowałam się na systemowy stack fontów i lokalną
+> kolekcję ikon, co jest też lepsze wydajnościowo. Na docelowym hostingu
 > (Vercel) wynik, zwłaszcza mobile, powinien być wyższy.
 
 ## 6. Jak korzystałam z AI
 
-Rozwiązanie powstało w parze z **Claude Code** (agent w terminalu) — zgodnie z zachętą w zadaniu.
+Rozwiązanie powstało w parze z Claude Code(agent w terminalu) — zgodnie z zachętą w zadaniu.
 AI użyłam do: poczatkowej struktury projektu, logiki ekstrakcji kWh/W i filtrowania, komponentów UI, testów
 jednostkowych i e2e oraz do diagnozy problemów. Miejsca, gdzie wynik AI wymagał mojej korekty:
 
@@ -156,34 +141,25 @@ jednostkowych i e2e oraz do diagnozy problemów. Miejsca, gdzie wynik AI wymaga�
   selecta. Efekt: błąd renderowania, strona była nieinteraktywna. Poprawka:
  mapowanie na `null`.
 -Zdublowane instancje Vue po zmianie wersji TypeScript  objawiało się „missing template or render function”. Naprawione reinstalacją
-- `vue-tsc` niezgodny z TypeScript 7 (natywny port) — cofnięcie do linii TS 5.x.
+- `vue-tsc` niezgodny z TypeScript 7— cofnięcie do  TS 5.x.
 - Testy e2e — Playwrightowy `fill()` nie wyzwala listenera UInput, a wszystkie checkboxy
-  dziedziczyły jedną nazwę dostępną z `UFormField`. Poprawiłam to u źródła (lepsza dostępność:
-  `<fieldset>`/`<legend>` zamiast jednej etykiety grupowej), dodałam marker
+  dziedziczyły jedną nazwę dostępną z `UFormField`. Dodałam
+  `<fieldset>`/`<legend>` zamiast jednej etykiety grupowej, dodałam marker
   hydracji i przepisałam scenariusze testu na poporawne komponenty.
 - Lighthouse 13 niezgodny z Node 22 — użycie wersji 12.
 - Odświeżanie danych przy „wstecz” — dodanie `watch: [() => route.query]` do `useFetch`.
 
-Wnioski: AI przyspiesza szkielet i logikę, ale integracja z konkretną wersją biblioteki
-komponentów (reka-ui/Nuxt UI), specyfika środowiska (proxy, wersje narzędzi) i realne zachowanie
+AI przyspiesza szkielet i logikę, ale integracja z konkretną wersją biblioteki
+komponentów, specyfika środowiska (wersje narzędzi) i realne zachowanie
 w przeglądarce wymagały weryfikacji i poprawek z mojej strony.
 
 ## 7. Ile czasu zajęło
 
-Ok. **4–4,5 h** łącznie z README. Istotna część poszła na problemy środowiskowe (firmowe proxy
-blokujące pobieranie szablonów/fontów/przeglądarek, deduplikacja zależności, quirki Playwrighta
-z inputem Nuxt UI), a nie na samą logikę zadania — tę udało się zamknąć szybko dzięki wydzieleniu
-czystych, testowalnych funkcji.
-
+Ok. 4–4,5 h łącznie z README. Istotna część poszła na problemy środowiskowe (firmowe proxy
+blokujące pobieranie szablonów/fontów/przeglądarek, deduplikacja zależności, problem Playwrighta
+z inputem Nuxt UI), a nie na samą logikę zadania — tę udało się zamknąć szybko.
 ---
 
-## Wdrożenie (Vercel)
-
-Projekt jest gotowy pod Vercel (Nitro wykrywa preset automatycznie):
-
-1. Zaimportuj repo w Vercel.
-2. Framework preset: **Nuxt** (wykrywany automatycznie), build: `pnpm build`.
-3. Deploy — CSV jedzie w buildzie jako server asset, więc nie trzeba nic konfigurować.
 
 Lokalnie e2e korzystają z systemowej przeglądarki, gdy pobranie przeglądarki Playwright jest
 zablokowane: `E2E_CHANNEL=chrome pnpm test:e2e` (lub `msedge`). W normalnym środowisku wystarczy
